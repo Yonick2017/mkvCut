@@ -11,6 +11,17 @@ import subprocess
 from pathlib import Path
 
 
+def get_base_path():
+    """Get the base path of the script or executable.
+    Works correctly with PyInstaller bundles."""
+    if getattr(sys, 'frozen', False):
+        # Running as a PyInstaller bundle
+        return Path(sys.executable).parent.absolute()
+    else:
+        # Running as a normal Python script
+        return Path(__file__).parent.absolute()
+
+
 def parse_time(time_str):
     """Parse time string in format HHMMSS (e.g. 013245 -> 1h 32m 45s)"""
     clean = time_str.strip()
@@ -42,8 +53,14 @@ def cut_video(input_path, start_time, end_time, output_path):
     # Build ffmpeg command for fast copy mode
     # -ss before -i enables input seeking (much faster)
     # -c copy copies streams without re-encoding (fast copy mode)
-    # Use ffmpeg.exe from the same directory as this script
-    ffmpeg_exe = str(Path(__file__).parent / 'ffmpeg.exe')
+    # Use ffmpeg.exe from the same directory if exists, else use system ffmpeg
+    base_path = get_base_path()
+    local_ffmpeg = base_path / 'ffmpeg.exe'
+    if local_ffmpeg.exists():
+        ffmpeg_exe = str(local_ffmpeg)
+    else:
+        ffmpeg_exe = 'ffmpeg'  # Use system ffmpeg
+
     cmd = [
         ffmpeg_exe,
         '-ss', format_time(start_time),  # Input seeking (faster)
@@ -133,7 +150,7 @@ def main():
     
 
     # Get script directory for output
-    script_dir = Path(__file__).parent.absolute()
+    script_dir = get_base_path()
     
     # Generate output filename
     input_stem = input_path.stem
