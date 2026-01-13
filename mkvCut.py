@@ -81,7 +81,9 @@ def cut_video(input_path, start_time, end_time, output_path):
             cmd,
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         print("Video cutting completed!")
         return True
@@ -98,7 +100,7 @@ def main():
     # Get input file from command line argument (drag-and-drop)
     if len(sys.argv) < 2:
         print("Please drag a video file onto this script, or provide the video file path via command line.")
-        print("Usage: python python.py <video_file>")
+        print("Usage: python mkvCut.py <video_file>")
         input("\nPress Enter to exit...")
         sys.exit(1)
     
@@ -117,69 +119,79 @@ def main():
     
     print(f"Input file: {input_path}")
     print(f"File size: {input_path.stat().st_size / (1024*1024):.2f} MB")
-    
-    # Get start time
-    start_input = ""
-    while True:
-        start_input = input("Please enter start time (format: HHMMSS): ").strip()
-        try:
-            start_time = parse_time(start_input)
-            if start_time < 0:
-                print("Error: Start time cannot be negative")
-                continue
-            break
-        except ValueError as e:
-            print(f"Error: Invalid time format - {e}")
-    
-    # Get end time
-    end_input = ""
-    while True:
-        end_input = input("Please enter end time (format: HHMMSS): ").strip()
-        try:
-            end_time = parse_time(end_input)
-            if end_time <= start_time:
-                print("Error: End time must be greater than start time")
-                continue
-            break
-        except ValueError as e:
-            print(f"Error: Invalid time format - {e}")
-    
-    print(f"\nStart time: {format_time(start_time)}")
-    print(f"End time: {format_time(end_time)}")
-    print(f"Duration: {format_time(end_time - start_time)}")
-    
+
+    print("\nReady. Enter different time ranges to cut the same video.")
+    print("Press Ctrl+C anytime to exit.\n")
 
     # Get script directory for output
     script_dir = get_base_path()
-    
-    # Generate output filename
     input_stem = input_path.stem
     input_suffix = input_path.suffix
-    output_path = script_dir / f"{input_stem}_{start_input}_{end_input}{input_suffix}"
-    
-    # Counter for output filename if file exists
-    counter = 1
-    while output_path.exists():
-        output_path = script_dir / f"{input_stem}_{start_input}_{end_input}_{counter}{input_suffix}"
-        counter += 1
-    
-    print(f"Output file: {output_path}\n")
-    
-    # Confirm before processing
-    confirm = input("\nConfirm cutting? (Y/n): ").strip().lower()
-    if confirm not in ('', 'y'):
-        print("Operation cancelled.")
-        sys.exit(0)
-    
-    # Cut video
-    success = cut_video(input_path, start_time, end_time, output_path)
-    
-    if success:
-        print(f"\nOutput file saved to: {output_path}")
-        file_size = output_path.stat().st_size / (1024*1024)
-        print(f"Output file size: {file_size:.2f} MB")
-    
-    input("\nPress Enter to exit...")
+
+    try:
+        while True:
+            # Get start time
+            start_input = ""
+            while True:
+                start_input = input("Please enter start time (format: HHMMSS): ").strip()
+                try:
+                    start_time = parse_time(start_input)
+                    if start_time < 0:
+                        print("Error: Start time cannot be negative")
+                        continue
+                    break
+                except ValueError as e:
+                    print(f"Error: Invalid time format - {e}")
+
+            # Get end time
+            end_input = ""
+            while True:
+                end_input = input("Please enter end time (format: HHMMSS): ").strip()
+                try:
+                    end_time = parse_time(end_input)
+                    if end_time <= start_time:
+                        print("Error: End time must be greater than start time")
+                        continue
+                    break
+                except ValueError as e:
+                    print(f"Error: Invalid time format - {e}")
+
+            print(f"\nStart time: {format_time(start_time)}")
+            print(f"End time: {format_time(end_time)}")
+            print(f"Duration: {format_time(end_time - start_time)}")
+
+            # Generate output filename
+            output_path = script_dir / f"{input_stem}_{start_input}_{end_input}{input_suffix}"
+
+            # Counter for output filename if file exists
+            counter = 1
+            while output_path.exists():
+                output_path = script_dir / f"{input_stem}_{start_input}_{end_input}_{counter}{input_suffix}"
+                counter += 1
+
+            print(f"Output file: {output_path}\n")
+
+            # Confirm before processing
+            confirm = input("Confirm cutting? (Y/n): ").strip().lower()
+            if confirm not in ('', 'y'):
+                print("Operation cancelled.\n")
+                continue
+
+            # Cut video
+            success = cut_video(input_path, start_time, end_time, output_path)
+
+            if success:
+                print(f"\nOutput file saved to: {output_path}")
+                file_size = output_path.stat().st_size / (1024*1024)
+                print(f"Output file size: {file_size:.2f} MB\n")
+                continue
+
+            retry = input("\nCut failed. Try another time range? (Y/n): ").strip().lower()
+            if retry not in ('', 'y'):
+                break
+
+    except KeyboardInterrupt:
+        print("\n\nExiting (Ctrl+C).")
 
 
 if __name__ == "__main__":
